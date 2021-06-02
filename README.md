@@ -3,8 +3,6 @@
 [![Code of Conduct](https://img.shields.io/badge/%E2%9D%A4-code%20of%20conduct-blue.svg?style=flat)](https://github.com/Carceral-Ecologies/Carceral-ECHO-data/blob/master/Code%20of%20Conduct.md)
 
 ## About - Carceral Ecology
-test
-
 
 This repository aims to document the Carceral Ecology project, that is being developed by Professor Nicholas Shapiro, UCLA, and Professor Lindsay Poirier, UCD. 
 
