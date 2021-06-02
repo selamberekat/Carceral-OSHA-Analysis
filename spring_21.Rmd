@@ -1,0 +1,99 @@
+---
+title: "spring_21"
+author: "Selam Berekat"
+date: "6/1/2021"
+output: html_document
+---
+
+#Assignment:
+#Correlation matrix for all key toxicity variables?  - Selam
+#A second plot showing a relationship between the variable and another key variable of interest. - Selam
+
+```{r, echo = FALSE}
+# Load packages
+library(tidyverse)
+library(tidyr)
+library(ggplot2)
+library(corrplot)
+```
+
+
+```{r, echo = FALSE}
+osha <- read.csv("dataset.csv", header = T)
+y1 <- as.factor(osha$union_status)
+x1 <- as.numeric(osha$gravity)
+x2 <- as.factor(osha$insp_scope)
+x3 <- as.factor(osha$insp_type)
+x4 <- osha$noviol
+
+x5 <- as.numeric(osha$current_penalty)
+x6 <- as.numeric(osha$initial_penalty)
+df <- data.frame(y1, x1, x2, x3, x4, x5, x6)
+colnames(df) <- c("Union", "Gravity", "Ins-Scope", "Ins-Type", "Noviol", "Cur-Penalty", "Init-Penalty")
+
+prop <- apply( apply(df, 2, is.na),  2, sum )/nrow(df) #proportion
+prop
+
+# (freq1 <- table(df$Union, df$Gravity, useNA="always"))
+# (freq2 <- table(df$Union, df$`Ins-Scope`, useNA="always"))
+# (freq3 <- table(df$Union, df$`Ins-Type`, useNA="always"))
+# (freq4 <- table(df$Union, df$Noviol, useNA="always"))
+
+
+# head(df, 10)
+# df <- na.omit(df)
+# summary(x4)
+# sum(is.na(x4))
+# which(is.na(df))
+# fac <- factor(x4)
+# levels(fac)
+```
+The variable "Gravity" has NA's that are worth 70% of our dataset and thus we decided to have it removed. Because it was affecting the variable "Noviol", for instance: for all the NA's on Gravity, they were a True for variable noviol, and removing the NA's were removing the entire True values in the variable Noviol.
+
+
+# Correlation matrix
+```{r}
+df[] <- lapply(df, as.numeric)
+corrplot(cor(df, use = "pairwise.complete.obs"))
+
+
+library("PerformanceAnalytics")
+library(EnvStats)
+chart.Correlation(df, histogram = TRUE, pch = 19)
+```
+
+# Multiple Linear Regression Analysis Model
+# Part (1)_using computational
+# Coefficients
+# Hypothesis Test
+# Confidence Interval
+# Choose best model meaning which model is best and what are the selected variables that can predict if there is relationship between "Penalty Fee and Type of Violation"
+
+
+```{r}
+df2 <- data.frame(y1, x2, x3, x4, x5, x6)
+colnames(df2) <- c("Union", "InsScope", "InsType", "Noviol", "CurPenalty", "InitPenalty")
+# df2 <- na.omit(df2)
+
+##Y1: Union
+df2 <- df2 %>% mutate(Union = ifelse((Union == "Y" | Union == "U" | Union == "A"), 1, 0))
+
+##X4: Noviol
+df2$Noviol = ifelse(df2$Noviol == "TRUE", 1, 0) #[ 1=True, No Viol and 0=False, Yes Viol ]
+
+##X2: Inspection Scope
+df2$InsScope <- factor(df2$InsScope, levels = c("A", "B", "D"),
+                       labels = c("1", "2", "3"))
+
+##X3: Inspection Type
+df2$InsType <- factor(df2$InsType, levels = c("A", "B", "C", "F", "G", "H", "J", "M"),
+                      labels = c("1", "2", "3", "4", "5", "6", "7", "8"))
+
+# dim(df2$Union)
+# dim(df2$InsType)
+# table(df2$Union, df2$InspType)
+table(df2$Noviol)
+# head(df2)
+# str(df2)
+```
+
