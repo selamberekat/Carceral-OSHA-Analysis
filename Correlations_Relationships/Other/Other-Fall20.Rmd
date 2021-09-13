@@ -1,10 +1,9 @@
 ---
-title: "spring_21"
+title: "osha_spring21"
 author: "Selam Berekat"
-date: "6/1/2021"
+date: "4/6/2021"
 output: html_document
 ---
-
 #Assignment:
 #Correlation matrix for all key toxicity variables?  - Selam
 #A second plot showing a relationship between the variable and another key variable of interest. - Selam
@@ -96,4 +95,13 @@ table(df2$Noviol)
 # head(df2)
 # str(df2)
 ```
+
+
+
+```{r}
+the.means = aggregate(y1~)
+
+```
+
+
 

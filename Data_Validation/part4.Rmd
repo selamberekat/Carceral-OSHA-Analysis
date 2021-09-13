@@ -1,0 +1,300 @@
+## Research Internship - Summer 2021
+
+## Data analysis for OSHA "Occupational Safety and Health Administration"
+
+## Additional task: Verify data accuracy 
+
+
+---------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------
+
+
+## <span style="color:blue">Part One:</span> 
+
+## <span style="color:blue">a. Load packages and dataset</span> 
+
+```{r, echo = FALSE}
+rm(list=ls())
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+```
+
+
+## <span style="color:blue">b. Data cleaning</span> 
+
+
+```{r, echo = FALSE}
+osha_lo <- read.csv("dataset_long.csv", header = T) %>%
+  filter(!is.na(reporting_id) & !is.na(owner_type) & !is.na(viol_type))
+
+#check whether NA are removed or not
+paste("Table that confirm if NA values are successfuly removed from the variables.")
+```
+
+
+```{r, echo = FALSE}
+paste("Variable #1: Reporting ID's")
+table(osha_lo$reporting_id)
+```
+
+
+```{r, echo = FALSE}
+paste("Variable #2: Owner Type")
+table(osha_lo$owner_type)
+```
+
+
+```{r, echo = FALSE}
+paste("Variable #3: Violation Type")
+table(osha_lo$viol_type)
+```
+
+
+---------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------
+
+## <span style="color:blue">Part Two: Table of Violation Reported by Owner Type</span> 
+
+
+```{r, echo = FALSE}
+tablef = data.frame(cbind(table(osha_lo$reporting_id, osha_lo$owner_type)))
+colnames(tablef) = c("A = Private", "B = Local Govt", "C = State Govt", "D = Federal")
+tablef
+```
+
+### Total sum per column:
+
+```{r, echo = FALSE}
+colSums(tablef)
+```
+
+
+
+```{r, echo = FALSE}
+boxplot(tablef, main = "Analysis of Owner Type by Reported Violation")
+```
+
+*We understand from the plot that state government have the highest reported violation whereas private facilities have the lowest reported violation compared to the other owners. We do not know if private facilities were very cautious from violation to prevent higher violation fees or to protect their license from cancellation. They have the lowest violation from the other type of facilities.*
+
+```{r echo=FALSE, fig.height=10, fig.width=10}
+
+OwnerType <- ifelse(osha_lo$owner_type == "A", "A=Private",
+             ifelse(osha_lo$owner_type == "B", "B=Local Govt",
+             ifelse(osha_lo$owner_type == "C", "C=State Govt", "D=Federal")))
+#sort(unique(OwnerType))
+#table(OwnerType, osha_lo$owner_type)
+
+CurrentPenalty <- as.factor(osha_lo$current_penalty)
+InitialPenalty <- as.factor(osha_lo$initial_penalty)
+
+par(mfrow=c(2,2))
+boxplot(as.numeric(CurrentPenalty) ~ OwnerType, main = "Paid Penalty scale by Owner type", ylab = "Paid Penalty Scale")
+boxplot(as.numeric(InitialPenalty) ~ OwnerType, main = "Initial Penalty scale by Owner type", ylab = "Initial Penalty Scale")
+```
+
+
+---------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------
+
+
+## <span style="color:blue">Part Three:</span> 
+
+
+## <span style="color:blue">1. Violation report for "C" State Governed Facility</span>
+
+
+```{r, echo = FALSE}
+ownerC = 
+  osha_lo %>%
+  group_by(owner_type) %>%
+  filter(owner_type == "C") %>%
+  arrange(viol_type) 
+
+# unique(osha_lo$viol_type)
+
+newdata1 =
+  cbind(table(ownerC$reporting_id, ownerC$viol_type))
+colnames(newdata1) = c("O = Other", "R = Repeat", "S = Serious")
+newdata1
+```
+
+
+### Total sum per column:
+
+
+```{r, echo = FALSE}
+colSums(newdata1)
+```
+
+
+### <span style="color:red">Selected Inspection Number:</span> 
+### Repeated Violation ONLY
+
+
+```{r, echo = FALSE}
+osha_lo %>%
+  group_by(owner_type) %>%
+  filter(owner_type == "C", viol_type == "R") %>%
+  arrange(activity_nr) %>%
+  select(activity_nr, viol_type)
+```
+
+## <span style="color:blue">2. Violation report for "B" Local Governed Facility</span>
+
+
+```{r, echo = FALSE}
+ownerB = 
+  osha_lo %>%
+  group_by(owner_type) %>%
+  filter(owner_type == "B") %>%
+  arrange(viol_type) 
+
+newdata2 =
+  cbind(table(ownerB$reporting_id, ownerB$viol_type))
+colnames(newdata2) = c("O = Other", "R = Repeat", "S = Serious")
+newdata2
+```
+
+
+### Total sum per column:
+
+
+```{r, echo = FALSE}
+colSums(newdata2)
+```
+
+
+### <span style="color:red">Selected Inspection Number:</span> 
+### 1) Repeated Violation:
+
+```{r, echo = FALSE}
+osha_lo %>%
+  group_by(owner_type) %>%
+  filter(owner_type == "B", viol_type == "R") %>%
+  arrange(activity_nr) %>%
+  select(activity_nr, viol_type)
+```
+
+
+### 2) Serious Violation:
+
+```{r, echo = FALSE}
+osha_lo %>%
+  group_by(owner_type) %>%
+  filter(owner_type == "B", viol_type == "S") %>%
+  arrange(activity_nr) %>%
+  select(activity_nr, viol_type)
+```
+
+
+## <span style="color:blue">3. Violation report for "D" Federal Governed Facility</span>
+
+
+```{r, echo = FALSE}
+ownerD = 
+  osha_lo %>%
+  group_by(owner_type) %>%
+  filter(owner_type == "D") %>%
+  arrange(viol_type) 
+
+newdata3 =
+  cbind(table(ownerD$reporting_id, ownerD$viol_type))
+colnames(newdata3) = c("O = Other", "R = Repeat", "S = Serious")
+newdata3
+```
+
+
+### Total sum per column:
+
+```{r, echo = FALSE}
+colSums(newdata3)
+```
+
+
+### <span style="color:red">Selected Inspection Number:</span> 
+### Repeated Violation ONLY
+
+
+```{r, echo = FALSE}
+osha_lo %>%
+  group_by(owner_type) %>%
+  filter(owner_type == "D", viol_type == "R") %>%
+  arrange(activity_nr) %>%
+  select(activity_nr, viol_type)
+```
+
+
+## <span style="color:blue">4. Violation report for "A" Private Governed Facility</span>
+
+
+```{r, echo = FALSE}
+ownerA = 
+  osha_lo %>%
+  group_by(owner_type) %>%
+  filter(owner_type == "A") %>%
+  arrange(viol_type) 
+
+newdata4 =
+  cbind(table(ownerA$reporting_id, ownerA$viol_type))
+colnames(newdata4) = c("O = Other", "S = Serious")
+newdata4
+```
+
+
+### Total sum per column:
+
+
+```{r, echo = FALSE}
+colSums(newdata4)
+```
+
+
+### <span style="color:red">Selected Inspection Number:</span> 
+### Serious Violation ONLY
+
+```{r, echo = FALSE}
+osha_lo %>%
+  group_by(owner_type) %>%
+  filter(owner_type == "A", viol_type == "S") %>%
+  arrange(activity_nr) %>%
+  select(activity_nr, viol_type)
+```
+
+
+---------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------
+
+
+## <span style="color:blue">Part Four: Reflection</span> 
+
+*The verification was performed for 30 samples according to the table below: *
+
+
+OWNER TYPE | VIOLATION TYPE | NUMBER OF OCCURRENCES| ASSOCIATED INSPECTION
+---|---|---|---
+*C = State Govt* | *Repeated* | *4*| *listed above*
+*B = Local Govt* | *Repeated* | *1*| *listed above*
+*B = Local Govt* | *Serious* | *15*| *listed above*
+*D = Federal Govt* | *Repeated* | *8*| *listed above*
+*A = Private Facility* | *Serious* | *2*| *listed above*
+
+
+*Data accuracy, there are some columns I didn't know where we get the answers and I found only one missing information but everything else was accurate. I verified them all with Savannah and for the missing information, we assume the update happened probably from the website since there is a regular update going-on.*
+
+*I selected those 30 inspection numbers since they seem to indicate either violations repeated or facilities with few serious violation. Below is a brief review about my selection.*
+
+*C=State governed facility have too many violation and mostly non-serious violations. They have 4 repeated violation which are from both safety and health related. Their initial issued penalty amount and their current payment seems equivalent.*
+
+*B=Local governed facility have ONLY 1 repeated violation and it was safety related. Their violation are mostly non-serious. They have 15 serious violation mostly safety related and some health related. Surprisingly they don't pay the initial charged payment, but they get a good deal on their current/final payment. For example, if they are charged $3375, they will pay $335 only and if they are charged $22500 they will pay $8435 only.*
+
+*D=Federal governed facility have both health and safety related violation. Their violations are mostly serious and few non-serious violation. Surprisingly they were never charged any penalty payment for their violations.*
+
+*A=Private governed facility have both health and safety related violation. And with only 2 serious violations. Their violation are mostly non-serious. Some of the violation have no record of payment but for those with record, they pay the initially charged amount.*
+
+*Charts: Plot level of serious vs non-serious vs repeated violation per each owner. Questions we have: What makes a facility prone to serious violation? What is serious violation? health, safety, dangers chemicals etc.? How is it interpreted in this case? How were private governed facilities able to prevent from repeating a violation? is it giving proper training to employees? hiring very qualified employees to do the sensitive task? is the type of industry they choose with less toxicity? What makes some owners get less amount to pay for penalty? is it because number of people exposed? does it have to do with case duration? or does it have to do with presence of union in the investigation?*
+
+
+---------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------
+

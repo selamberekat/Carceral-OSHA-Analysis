@@ -1,0 +1,169 @@
+---
+title: "spring_2"
+author: "Selam Berekat"
+date: "6/1/2021"
+output: html_document
+---
+
+Research Questions:
+
+1) Construct a correlation matrix for all key variables?
+
+2) Plot to show a relationship between all the key variables?
+
+Methods:
+
+1) In order to create a correlation matrix, we first determined the type of variables and checked the proportion of data available in the dataset. And, we created the correlation matrix between all the variables.
+
+2) Plotting according to the variable data type and the finding.
+
+```{r, echo = FALSE}
+rm(list=ls())
+# Load packages
+library(tidyverse)
+library(tidyr)
+library(ggplot2)
+library(corrplot)
+```
+
+
+```{r, echo = FALSE}
+osha <- read.csv("dataset.csv", header = T)
+y1 <- as.factor(osha$union_status)
+x1 <- as.numeric(osha$gravity)
+x2 <- as.factor(osha$insp_scope)
+x3 <- as.factor(osha$insp_type)
+x4 <- osha$noviol
+
+x5 <- as.numeric(osha$current_penalty)
+x6 <- as.numeric(osha$initial_penalty)
+df <- data.frame(y1, x1, x2, x3, x4, x5, x6)
+colnames(df) <- c("Union", "Gravity", "Ins-Scope", "Ins-Type", "Noviol", "Cur-Penalty", "Init-Penalty")
+str(df)
+```
+
+
+```{r, echo = FALSE}
+paste("The proportion of missing/removed data for each variables")
+prop <- apply( apply(df, 2, is.na),  2, sum )/nrow(df) #proportion
+prop
+```
+
+
+The variable "Gravity" has NA's that are worth 67% of our dataset and thus we decided to have it removed. Because it was affecting the variable "Noviol", for instance: for all the NA's on Gravity, they were a True for variable noviol, and removing the NA's were removing the entire True values in the variable Noviol.
+
+
+# Interest_1: Correlation matrix
+
+```{r, echo = FALSE}
+paste("Correlation Matrix for all variables except Gravity")
+
+df[] <- lapply(df, as.numeric)
+corrplot(cor(df, use = "pairwise.complete.obs"))
+
+
+library("PerformanceAnalytics")
+library(EnvStats)
+chart.Correlation(df, histogram = TRUE, pch = 19)
+```
+Correlated are: 
+Union vs InsScope and !Gravity and InsType
+Gravity vs InsScope and Cur-Penalty and Init-Penalty
+Ins-Scope vs Union, Gravity, Noviol, Cur-Penalty and Init-Penalty, but !Ins-Type 
+etc...
+
+# Interest_2: Plot
+
+```{r, echo = FALSE}
+df2 <- data.frame(y1, x2, x3, x4, x5, x6)
+colnames(df2) <- c("Union", "InsScope", "InsType", "Noviol", "CurPenalty", "InitPenalty")
+
+##Y1: Union
+df2 <- df2 %>% mutate(Union = ifelse((Union == "Y" | Union == "U" | Union == "A"), 1, 0))
+
+##X4: Noviol
+df2$Noviol = ifelse(df2$Noviol == "TRUE", 1, 0) #[ 1=True, No Viol and 0=False, Yes Viol ]
+
+##X2: Inspection Scope
+df2$InsScope <- factor(df2$InsScope, levels = c("A", "B", "D"),
+                       labels = c("1", "2", "3"))
+
+##X3: Inspection Type
+df2$InsType <- factor(df2$InsType, levels = c("A", "B", "C", "F", "G", "H", "J", "M"),
+                      labels = c("1", "2", "3", "4", "5", "6", "7", "8"))
+
+
+
+head(df2)
+```
+
+```{r, echo = FALSE}
+# table(df2)
+```
+
+
+```{r, echo = FALSE}
+library(ggplot2)
+table(df2$Union)
+par(mfrow=c(2,2))
+two.way = table(df2$InsScope, df2$Union)
+barplot(two.way, beside = TRUE, legend.text = rownames(two.way), main = "Union Status vs Inspection Scope")
+
+two.way = table(df2$InsType, df2$Union)
+barplot(two.way, beside = TRUE, legend.text = rownames(two.way), main = "Union Status vs Inspection Type")
+
+two.way = table(df2$Noviol, df2$Union)
+barplot(two.way, beside = TRUE, legend.text = rownames(two.way), main = "Union Status vs No Violation Status")
+
+par(mfrow=c(2,2))
+ggplot(df2, aes(x = CurPenalty)) + 
+  geom_histogram(binwidth = 500) + 
+  facet_grid(Union ~ .) +
+  ggtitle("Union Status by Current penalty fee")
+
+ggplot(df2, aes(x = InitPenalty)) + 
+  geom_histogram(binwidth = 500) + 
+  facet_grid(Union ~ .) +
+  ggtitle("Union Status by Initial penalty fee")
+
+```
+
+
+
+
+###############################################################################
+
+```{r, echo = FALSE}
+df2 <- data.frame(y1, x2, x3, x4, x5, x6)
+colnames(df2) <- c("Union", "InsScope", "InsType", "Noviol", "CurPenalty", "InitPenalty")
+
+##Y1: Union
+df2 <- df2 %>% mutate(Union = ifelse((Union == "Y" | Union == "U" | Union == "A"), 1, 0))
+
+##X4: Noviol
+df2$Noviol = ifelse(df2$Noviol == "TRUE", 1, 0) #[ 1=True, No Viol and 0=False, Yes Viol ]
+
+##X2: Inspection Scope
+df2$InsScope <- factor(df2$InsScope, levels = c("A", "B", "D"),
+                       labels = c("1", "2", "3"))
+
+##X3: Inspection Type
+df2$InsType <- factor(df2$InsType, levels = c("A", "B", "C", "F", "G", "H", "J", "M"),
+                      labels = c("1", "2", "3", "4", "5", "6", "7", "8"))
+# table(df2$Noviol)
+```
+
+New Research Questions: 
+1) Construct a model to predict...?
+2) Which factors are important in predicting the most toxic hazards?
+3) Determine how serious the violation type was based on the penalty fees applied to the facilities?
+4) What is the relationship between key toxicity variables and owner type? Is the relationship strong or weak?
+5) Does the involvement of union status increases or decreases the case duration to resolve? How long does it take for a union to resolve the issue?
+6) Which of the inspection type subvariables is associated with higher penalties?
+
+
+Methods:
+3) Logistic regression
+4) Logistic regression
+5) Linear? Time series?
+6) ANOVA

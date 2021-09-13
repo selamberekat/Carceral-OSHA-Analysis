@@ -1,0 +1,485 @@
+## Research Internship - Summer 2021
+
+## Data analysis for OSHA "Occupational Safety and Health Administration"
+
+## Project One:
+
+### Which of the predictors "initial penalty fee", "current penalty paid", and "people exposed" explain the seriousness of "violation" in facilities? 
+### Approach: Hypothesis test, multiple linear regression, data visualization
+
+
+---------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------
+
+
+## Part One: Load packages and dataset
+
+```{r, echo = FALSE}
+rm(list=ls())
+library(tidyverse)
+library(ggplot2)
+library(corrplot)
+library(leaps)
+library(MASS)
+
+osha_wide <- read.csv("dataset_wide.csv", header = T)
+```
+
+
+---------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------
+
+
+## Part Two: About Variable
+
+VARIABLE NAME | DEFINTION | WHY IS THIS VARIABLE RELEVANT? WHAT DOES IT INDICATE?
+---|---|---
+*nr_violations.1* | *Total number of reported violations from all inspections* | *This variable consist of the frequency of violation per facility and it serve as investigative measure of toxicity (either health or safety) in the facility*
+*total_exposed.1* | *Total number of people reported to be exposed from all violations cited* | *Individuals who are exposed from the hazardous substances can indicate a better fit because it can help to determine how serious the violation was or not*
+*iptotal.1* | *Penalty amount that a facility was initially charged per initial violation* | *First penalty amount in USD per each violation per facility can be a better fit as the price can be a proxy variable to indicate worth or seriousness of violation*
+*cptotal.1* | *Total penalty amount that a facility paid for the entire violation* | *Total amount of penalty paid in USD for entire violation per facility can be a better fit as it can indicate accountability of the facility*
+
+
+## Part Three: Data analysis
+
+### About Data
+
+```{r, echo = FALSE}
+y1 <- osha_wide$nr_violations.1 
+x1 <- osha_wide$total_exposed.1
+x2 <- osha_wide$iptotal.1
+x3 <- osha_wide$cptotal.1
+
+df <- cbind(y1, x1, x2, x3)
+colnames(df) <- c("Violation", "Exposed", "InitialP", "CurrentP")
+
+paste("There are total 149 observations and below is table of 20 sample observations from the dataset:")
+head(df, 20)
+
+paste("Mathematically, the First-order regression equation is:")
+```
+
+
+$Y = \beta_0 + \beta_1 X_i1 + \beta_2 X_i2 + \beta_3 X_i3 + \epsilon_i$
+
+$Y_i$ = is violations of facility $i$
+
+$X_1$ = is number of people exposed at facility $i$
+
+$X_2$ = is amount in USD of initial penalty amount of facility $i$
+
+$X_3$ = is amount in USD of current penalty payment of facility $i$
+
+
+### Approach using Hypothesis Test
+
+
+$H_O: \beta_1=\beta_2=\beta_3=0$
+
+$H_A$: at least one $\beta_j \neq 0$ (for $j=1,2,3$)
+
+
+```{r, echo = FALSE}
+n = dim(df)[1]; p = dim(df)[2]
+X = as.matrix(cbind(rep(1,n), df[,2:4]))
+Y = as.matrix(df[,1])
+
+model = lm(Y ~ X)
+anova(model)
+
+# coefficient of partial determination: given x1 what additional % of variation can be explained by x2 and x3
+sm = summary(model)
+partialR = (sm$r.squared)
+```
+
+
+This is a sufficient evidence that F = 30.64 and P-Value is less than 0.001, and 
+we reject the null hypothesis to conclude that at least one predictor is useful in the model.
+
+
+```{r, echo = FALSE}
+paste("Predictors 'X2=Initial amount' and 'X3=Current penalty paid' explain", (round(partialR, digits=2))*100,"% of the variation in the response variable that cannot be explained by 'X1=People Exposed' variable. ")
+```
+
+
+### Approach using Multiple Regression Analysis
+
+
+### a. Graphical representation and interpretation:
+
+
+```{r, echo = FALSE}
+n = dim(df)[1]; p = dim(df)[2]
+X = cbind(rep(1,n), df[,2:4])
+Y = df[,1]
+par(mfrow = c(2,2))
+
+
+
+# Correlation panel
+panel.cor <- function(x, y){
+    usr <- par("usr"); on.exit(par(usr))
+    par(usr = c(0, 1, 0, 1))
+    r <- round(cor(x, y), digits=2)
+    txt <- paste0("R = ", r)
+    cex.cor <- 0.8/strwidth(txt)
+    text(0.5, 0.5, txt, cex = cex.cor * r)
+}
+# Customize upper panel
+
+my_cols <- c("#00AFBB", "#E7B800", "#FC4E07")  
+
+upper.panel<-function(x, y){
+  points(x,y, pch = 19, col = my_cols[df[,1]])
+}
+# Create the plots
+pairs(df[,1:4], 
+      lower.panel = panel.cor,
+      upper.panel = upper.panel)
+
+
+#hist(Y, main = "Distribution of Violation")
+#**The histogram plot is skewed to the right illustrating the data is positive. This is because we are having a larger of our observation mostly in the lower values than the larger values.
+```
+
+
+### b. Measure of central tendency 
+
+```{r, echo = FALSE}
+paste("People Exposed")
+summary(x1)
+```
+
+
+Respondents' exposed to toxicity range from 0-13181 peoples with a mean of 360 people exposed per facility.
+We have data distributed or skewed to the right.
+
+```{r, echo = FALSE}
+paste("Initial Amount")
+summary(x2)
+```
+
+
+The penalty amount charged to facilities range from 0 - 141680 USD, with a mean of 8827 USD per facility.
+We have data distributed or skewed to the right.
+
+```{r, echo = FALSE}
+paste("Current Pay")
+summary(x3)
+```
+
+
+The penalty amount charged to facilities range from 0 - 63295 USD, with a mean of 4933 USD per facility.
+We have data distributed or skewed to the right.
+
+
+### c. Testing for multicollinearity diagnostic
+
+```{r, echo = FALSE}
+library(olsrr)
+```
+
+
+```{r, echo = FALSE}
+#a. review of correlation matrix
+sample <- as.data.frame(cbind(x1, x2, x3))
+round(cor(sample), digits = 2)
+```
+
+
+There is a high correlation between the variable "CurrentPay" and "InitialAmount" where (r = 0.92)
+
+```{r, echo = FALSE}
+#b. compute variance inflation factor (VIF)
+samplemodel <- lm(x1~x2+x3)
+summary(samplemodel)
+ols_coll_diag(samplemodel)
+```
+
+
+Since both VIF values are below 10 and tolerance values are not below 0.1, we consider both variables are within tolerance level suggesting there id no collinearity. 
+However, when we check at the lowest eigenvalue (0.006), we can see that both InitialAmount and CurrentPay have high variance proportions (0.95 and 0.96) for Dimension 3, which means that 95% of the variance of the b-value for InitialAmount and 96% of the variance of the b-value for CurrentPay is associated with the Eigenvalue 3 (the smallest eigenvalue). This suggests that there might be some dependency between these two variables.
+
+Conclusion is after reviewing two test of multicollinearity, the correlation matrix suggests there is collinearity between InitialAmount and CurrentPay. While, VIF and tolerance statistic suggest there is no collinearity. 
+Therefore, we understand there is no multicollinearity in our data except the suggested collinearity between the two variables. Thus, we might continue with both of them in the model since we require them in our analysis.
+
+
+### d. Model building
+
+
+```{r, echo = FALSE}
+# violation = [y.intercept] + [slope1*Exposed] + [slope2*InitialP] + [slope3*CurrentP]
+model = lm(Y ~ X)
+
+summary(model)
+
+par(mfrow = c(2, 2))
+plot(model)
+```
+
+
+Pvalue1 suggests that using all the predictors is significantly better than using InitialP & CurrentP alone. 
+Pvalue2 suggests same thing. 
+Pvalue3 suggests that using all the predictors isn't significantly better than using Exposed and InitialP alone to predict violation.
+General Pvalue of 2.098e-15 shows its fine to use three predictors :)
+
+
+### 1. Check and Validate Assumption 
+
+```{r, echo = FALSE}
+model_transformed = lm(log(Y+1)~X)
+
+summary(model_transformed)
+
+par(mfrow = c(2, 2))
+plot(model_transformed)
+```
+
+
+Transforming the dataset is not helping to normalize it, therefore I will continue the analysis without transforming it.
+
+
+### 2. Data splitting 
+
+
+```{r, echo = FALSE}
+set.seed(123)
+
+index = sample(1:149, 75)
+training_data = df[index,]  #the first half
+validate_data = df[-index,] #the second half
+
+
+n_train = dim(training_data)[1]; n_test = dim(validate_data)[1]
+paste("There are", n_train, "training and", n_test, "validating/testing observations.")
+```
+
+
+### 3. First-order model selection using best subsets criteria
+
+
+```{r, echo = FALSE}
+Y = as.matrix(training_data[,1])
+XM = as.matrix(cbind(rep(1,75), training_data[,2:4]))
+
+Y_val = as.matrix(validate_data[,1])
+XM_val = as.matrix(cbind(rep(1,74), validate_data[,2:4]))
+
+models = regsubsets(training_data[,2:4], Y, nbest=1, nvmax=3) ###
+potential = summary(models)$which
+#dim(potential)
+```
+
+
+### a. adjusted r squared
+
+```{r, echo = FALSE}
+Rap = summary(models)$adjr2
+p = rowSums(summary(models)$which)
+plot(p,Rap)
+which.max(Rap) #2
+```
+
+```{r, echo = FALSE}
+summary(models)$which[which.max(Rap),]
+```
+
+### b. Cp
+
+```{r, echo = FALSE}
+Cp = summary(models)$cp
+p = rowSums(summary(models)$which)
+plot(p,Cp)
+abline(0,1,col="turquoise")
+
+which.min(Cp-p) #2
+summary(models)$which[which.min(Cp-p),]
+```
+```{r, echo = FALSE}
+which.min(Cp) #1 
+summary(models)$which[which.min(Cp),]
+```
+
+
+The model with the lowest Cp−p has index 2, this includes all the predictor variables except Current penalty. The model with the lowest Cp has index 1, this includes all the predictor variables except Exposed and Current penalty.
+
+### c. AIC
+
+```{r, echo = FALSE}
+SSE = summary(models)$rss
+n = dim(df)[1]
+AIC = n*log(SSE)-n*log(n)+2*p
+plot(p,AIC)
+```
+
+
+```{r, echo = FALSE}
+which.min(AIC) #2
+summary(models)$which[which.min(AIC),]
+```
+
+
+The model with the lowest AIC has index 91, this includes all the predictor variables except current penalty. 
+
+### d. BIC
+
+```{r, echo = FALSE}
+BIC = n*log(SSE)-n*log(n)+p*log(n)
+plot(p,BIC)
+```
+
+
+```{r, echo = FALSE}
+which.min(BIC) #1
+summary(models)$which[which.min(BIC),]
+```
+
+The model with the lowest BIC has index 1, this includes all the predictor variables except Exposed and Current Penalty. We expect BIC to choose a model with less predictor variables than AIC because it has a larger penalty on adding predictor variables for models with many predictor variables.
+
+### e. PRESS
+
+```{r, echo = FALSE}
+include = summary(models)$which[,-1]
+
+m = dim(include)[1]
+PRESS = rep(0,m)
+for (i in 1:m){
+    temp = which(include[i,])
+    Xs = XM[,-1]
+    #reg = lm(Y~., data=data.frame(cbind(Y,Xs[,temp])))
+    reg = lm(Y~., data=data.frame(Xs[,temp]))
+    PRESS[i] = sum((reg$residuals/(1 - lm.influence(reg)$hat))^2)
+}
+
+plot(p, PRESS)
+```
+
+
+```{r, echo = FALSE}
+which.min(PRESS) #1
+summary(models)$which[which.min(PRESS),]
+```
+
+
+The model with the lowest PRESS has index 1, this includes all the predictor variables except exposed and current penalty.
+
+
+### b. 4. Model Diagnostic
+
+
+```{r, echo = FALSE}
+par(mfrow=c(2,2))
+i = 1
+temp = which(include[i,])
+Xs = XM[,-1]
+sel1 = lm(Y~., data=data.frame(Xs[,temp]))
+
+plot(sel1)
+summary(sel1)
+```
+
+
+```{r, echo = FALSE}
+par(mfrow=c(2,2))
+i = 2
+temp = which(include[i,])
+Xs = XM[,-1]
+sel2 = lm(Y~., data=data.frame(Xs[,temp]))
+
+plot(sel2)
+summary(sel2)
+```
+
+
+We compare both selected models and they both look fine, and that some assumptions hold. However, model 1 has smallest predictor variables, and with smallest MSE and MSPR.
+
+
+### b. 5. First-order with Two-way interaction model selection using stepwise algorithm
+
+
+```{r, echo = FALSE}
+model0 = lm(Y~1, data=data.frame(Xs))
+modelF = lm(Y~.^2, data=data.frame(Xs))
+step(model0, scope=list(lower=model0, upper=modelF), direction="both", k = log(n)) 
+```
+
+There are 2^(3 + 3 choose 2) possible regression models.
+Again, the model selection chose the variable initial payment only!
+Thus, we conclude that the optimal model to predict seriousness of violation is the model that have initial payment as a predictor variable.
+
+
+---------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------
+
+
+### Part Four: Data Visualization
+
+```{r, echo = FALSE}
+library(ggplot2)
+```
+
+### plot case duration and initial payment? what do we get?
+```{r, echo = FALSE}
+
+```
+
+
+### plot number exposed and initial payment? what do we get?
+```{r, echo = FALSE}
+
+```
+
+
+### plot contest date and penalty payment? what do we get?
+```{r, echo = FALSE}
+library(tidyverse)
+
+osha_lo <- read.csv("dataset_long.csv", header = T)
+
+ContestDate <- as.vector(osha_lo$contest_date)
+ContestDate[ContestDate == ""] = 0; ContestDate[is.na(ContestDate)] = 0; ContestDate[ContestDate != 0] = 1
+table(ContestDate)
+
+InitialAmount <- as.vector(osha_lo$initial_penalty)
+InitialAmount[is.na(InitialAmount)] = 0
+#table(InitialAmount)
+
+
+CurrentPay <- as.vector(osha_lo$current_penalty)
+CurrentPay[is.na(CurrentPay)] = 0
+#table(CurrentPay)
+
+mydata2 <- as.data.frame(cbind(ContestDate, InitialAmount, CurrentPay))
+n <- length(mydata2[,1])
+paste("There are total", n, "observations and below is table of 20 sample observations from the dataset:")
+head(mydata2, 20)
+
+library(tidyverse)
+par(mfrow=c(2,2))
+qplot(x = mydata2$ContestDate, geom = "bar")
+
+library(ggplot2)
+my_table <- table(ContestDate)
+count = table(mydata2$InitialAmount)
+ggplot(mydata2, aes(x = ContestDate, y = InitialAmount)) +
+  geom_col(position = "dodge")
+```
+
+
+
+---------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------
+
+
+## Part Five: Reflection
+
+
+*In this exploratory data analysis, I learned that the seriousness of violation can be predicted by the variable initial payment. I was able to come to this conclusion after performing a hypothesis test which favored the reduced model. A reduced model is the model with less predictor variables and it suggest that at least one predictor variable is only useful to the model. In addition, I continued my analysis by performing a multiple regression to select an optimal model that consist of statistically significant predictors with lowest error term. Using the best subset criteria method and model validation, I ended up with the model having the lowest predictor and lowest BIC that consist of the variable initial payment only. However, I might not state that initial payment should be the only predictor since there are variables from the dataset that were left unanalyzed. Also, there might be other variables that could help to determine the seriousness, but the variable is not included in the dataset. For instance, I think having a variable that indicates training per facility might be interesting to analyze. Since, if there are safety training occurring in facilities, they might help to lessen serious violation.*
+
+
+*Plot interpretation and findings missing??*
+
+
+---------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------
+

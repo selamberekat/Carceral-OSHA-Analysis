@@ -1,0 +1,387 @@
+## Research Internship - Summer 2021
+
+## Data analysis for OSHA "Occupational Safety and Health Administration"
+
+## Project Two:
+
+### Does the involvement of union status increase or decreases the case duration to resolve? How long does it take for a union to resolve the issue?
+
+
+---------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------
+
+
+## Part One: Load packages and dataset
+
+```{r, echo = FALSE}
+rm(list=ls())
+library(tidyverse)
+library(ggplot2)
+library(corrplot)
+library(leaps)
+library(MASS)
+osha_wide <- read.csv("dataset_wide.csv", header = T)
+
+```
+
+
+---------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------
+
+
+## Part Two: About Variable
+
+VARIABLE NAME | DEFINTION | WHY IS THIS VARIABLE RELEVANT? WHAT DOES IT INDICATE?
+---|---|---
+*union_present_sum.1* | *Presence of Union member during investigation* | *It is a better fit as it can indicate whether the presence of Union member helps to resolve violation investigation*
+*case_days_open_sum.1* | *Total days used to resolve the case* | *It is a better fit as it can indicate how long it takes and how serious are the investigations*
+*insp_scope_complete_sum.1* | *Total number of investigations that were Complete or Partial in scope* | *This can indicate if presence of union member makes the investigtion complete or leaves it partially*
+*nr_instances_total.1* | *Total number of instances or times the violation was present* | *This can indicate as proxy for danger in the industry itself or hazard ignorance*
+*total_exposed.1* | *Total number of people reported to be exposed from all violations cited* | *Individuals who are exposed from the hazardous substances can indicate a better fit because it determine how serious the violation was or not*
+
+
+```{r, echo = FALSE}
+Y <- osha_wide$case_days_open_sum.1
+X1 <- osha_wide$union_present_sum.1
+X2 <- osha_wide$insp_scope_complete_sum.1
+X3 <- osha_wide$nr_instances_total.1
+X4 <- osha_wide$total_exposed.1
+
+mydata <- as.data.frame(cbind(Y, X1, X2, X3, X4))
+colnames(mydata) <- c("CaseDuration", "Union", "InspectionScope", "NumberInstances", "PeopleExposure")
+head(mydata, 20)
+```
+
+
+---------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------
+
+
+## Part Three: Approach using Multiple Regression Model
+
+### a. Graphical representation and interpretation:
+
+```{r, echo = FALSE}
+n = dim(mydata)[1]; p = dim(mydata)[2]
+X = cbind(rep(1,n), mydata[,2:5])
+Y = mydata[,1]
+
+# Correlation panel
+panel.cor <- function(x, y){
+    usr <- par("usr"); on.exit(par(usr))
+    par(usr = c(0, 1, 0, 1))
+    r <- round(cor(x, y), digits=2)
+    txt <- paste0("R = ", r)
+    cex.cor <- 0.8/strwidth(txt)
+    text(0.5, 0.5, txt, cex = cex.cor * r)
+}
+
+# Customize upper panel
+upper.panel<-function(x, y){
+  points(x,y, pch=19, col=c("red", "green3", "blue")[mydata$CaseDuration])
+  r <- round(cor(x, y), digits=2)
+  txt <- paste0("R = ", r)
+  usr <- par("usr"); on.exit(par(usr))
+  par(usr = c(0, 1, 0, 1))
+  text(0.5, 0.9, txt)
+}
+
+# Create the plots
+pairs(mydata[,2:5], lower.panel = NULL, 
+      upper.panel = upper.panel)
+```
+
+
+### b. Model building
+
+
+```{r, echo = FALSE}
+# Union = [y.intercept] + [slope1*Union] + [slope2*InspectionScope] + [slope3*NumberInstances] + [slope4*PeopleExposure] + epsilon
+model = lm(Y ~ X1 + X2 + X3 + X4)
+
+results <- summary(model)
+cbind(results$coefficients[,1], results$coefficients[,4])
+
+
+par(mfrow = c(2, 2))
+plot(model)
+```
+
+
+### 1. Check and Validate Assumption 
+
+```{r, echo = FALSE}
+attach(mydata)
+model_transformed = lm(formula = log(Y+1) ~ X1+X2+X3+X4)
+
+
+summary(model_transformed)
+
+par(mfrow = c(2, 2))
+plot(model_transformed)
+```
+
+
+### 2. Data splitting 
+
+
+```{r, echo = FALSE}
+set.seed(123)
+
+index = sample(1:149, 75)
+training_data = mydata[index,]  #the first half
+validate_data = mydata[-index,] #the second half
+
+n_train = dim(training_data)[1]; n_test = dim(validate_data)[1]
+paste("There are", n_train, "training and", n_test, "validating/testing observations.")
+```
+
+
+### 3. First-order model selection using best subsets criteria
+
+
+```{r, echo = FALSE}
+Y = as.matrix(training_data[,1])
+XM = as.matrix(cbind(rep(1,75), training_data[,2:5]))
+
+Y_val = as.matrix(validate_data[,1])
+XM_val = as.matrix(cbind(rep(1,74), validate_data[,2:5]))
+
+models = regsubsets(training_data[,2:5], Y, nbest=1, nvmax=4) 
+potential = summary(models)$which
+#dim(potential)
+```
+
+
+### a. adjusted r squared
+
+```{r, echo = FALSE}
+Rap = summary(models)$adjr2
+p = rowSums(summary(models)$which)
+plot(p,Rap)
+which.max(Rap) #3
+```
+
+```{r, echo = FALSE}
+summary(models)$which[which.max(Rap),]
+```
+
+
+### b. Cp
+
+```{r, echo = FALSE}
+Cp = summary(models)$cp
+p = rowSums(summary(models)$which)
+plot(p,Cp)
+abline(0,1,col="turquoise")
+
+which.min(Cp-p) #3
+summary(models)$which[which.min(Cp-p),]
+```
+```{r, echo = FALSE}
+which.min(Cp) #3
+summary(models)$which[which.min(Cp),]
+```
+
+
+### c. AIC
+
+```{r, echo = FALSE}
+SSE = summary(models)$rss
+n = dim(mydata)[1]
+AIC = n*log(SSE)-n*log(n)+2*p
+plot(p,AIC)
+```
+
+
+```{r, echo = FALSE}
+which.min(AIC) #3
+summary(models)$which[which.min(AIC),]
+```
+
+
+### d. BIC
+
+```{r, echo = FALSE}
+BIC = n*log(SSE)-n*log(n)+p*log(n)
+plot(p,BIC)
+```
+
+
+```{r, echo = FALSE}
+which.min(BIC) #2
+summary(models)$which[which.min(BIC),]
+```
+
+
+### e. PRESS
+
+```{r, echo = FALSE}
+include = summary(models)$which[,-1]
+
+m = dim(include)[1]
+PRESS = rep(0,m)
+for (i in 1:m){
+    temp = which(include[i,])
+    Xs = XM[,-1]
+    reg = lm(Y~., data=data.frame(Xs[,temp]))
+    PRESS[i] = sum((reg$residuals/(1 - lm.influence(reg)$hat))^2)
+}
+
+plot(p, PRESS)
+```
+
+
+```{r, echo = FALSE}
+which.min(PRESS) #1
+summary(models)$which[which.min(PRESS),]
+```
+
+
+Most of the best criteria selected the model 2 and model 3. We will do model diagnostic to select the optimal one.
+
+
+### b. 4. First-order model diagnostic
+
+```{r, echo = FALSE}
+par(mfrow=c(2,2))
+i = 3
+temp = which(include[i,])
+Xs = XM[,-1]
+sel1 = lm(Y~., data=data.frame(Xs[,temp]))
+
+plot(sel1)
+summary(sel1)
+```
+
+
+```{r, echo = FALSE}
+par(mfrow=c(2,2))
+i = 2
+temp = which(include[i,])
+Xs = XM[,-1]
+sel2 = lm(Y~., data=data.frame(Xs[,temp]))
+
+plot(sel2)
+summary(sel2)
+```
+
+
+We compare both models and they both look ok, and that some assumptions hold. However, model 2 has smallest predictor variables that are statistically significant, and with smallest MSE and MSPR.
+
+
+### b. 5. First-order with Two-way interaction model selection using stepwise algorithm
+
+
+```{r, echo = FALSE}
+model0 = lm(Y~1, data=data.frame(Xs))
+modelF = lm(Y~.^2, data=data.frame(Xs))
+#summary(model0)
+#summary(modelF)
+step(model0, scope=list(lower=model0, upper=modelF), direction="both", k = log(n)) 
+```
+
+
+There are 16 possible regression models of first-order with interaction, and the model with lowest AIC consist of the variable Union and InspectionScope only. That is similar result to our approach using best subset criteria.
+
+
+### b. 6. First-order with Two-way interaction model diagnostic
+
+
+```{r, echo = FALSE}
+select = 2
+Xs = cbind(XM[,select])
+
+sel3 = lm(Y~., data=data.frame(Xs))
+
+par(mfrow=c(2,2))
+plot(sel3)
+summary(sel3)
+```
+
+
+### b. 7. Model Validation
+
+
+```{r, echo = FALSE}
+Xs_val = cbind(XM_val[,select])
+val3 = lm(Y_val~.,data=data.frame(Xs_val))
+summary(val3)#looks consistent
+```
+
+
+---------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------
+
+
+### Part Four: Data Visualization
+
+## Does presence of Union increase or decrease the case duration?
+
+```{r, echo = FALSE}
+osha_lo <- read.csv("dataset_long.csv", header = T)
+
+#recode Union
+#sort(unique(osha_lo$union_status))
+#table(osha_lo$union_status)
+unionP <- c("Y", "N", "N", "Y")
+osha_lo <- osha_lo %>% mutate(UNION = factor(union_status, labels = unionP))
+#table(osha_lo$UNION, osha_lo$union_status)
+#table(osha_lo$UNION)
+
+#recode Case Duration
+#osha_lo[is.na(osha_lo$close_case_date), "Date"] <- as.character(today)
+#table(osha_lo$close_case_date)
+#table(osha_lo$open_date)
+
+newdata <- as.data.frame(cbind(osha_lo$close_case_date, osha_lo$open_date))
+colnames(newdata) <- c("CaseClose", "CaseOpen")
+
+newdata$newClose <- as.POSIXct(strptime(as.character(newdata$CaseClose), "%m/%d/%Y"))
+newdata$txtClose <- format(newdata$newClose, "%Y-%m-%d")
+
+newdata$newOpen <- as.POSIXct(strptime(as.character(newdata$CaseOpen), "%m/%d/%Y"))
+newdata$txtOpen <- format(newdata$newOpen, "%Y-%m-%d")
+
+#a = (newdata$newClose[1] - newdata$newOpen)[1]/365
+newdata$yearDuration = (newdata$newClose - newdata$newOpen)/365
+#round(a, digit = 0)
+
+head(newdata, 25)
+
+data1 = as.data.frame(cbind(as.numeric(osha_wide$case_days_open_sum.1/365), osha_wide$union_present_sum.1))
+colnames(data1) = c("CaseDuration", "Yes-Union")
+head(data1, 6)
+
+data2 = as.data.frame(cbind(as.numeric(osha_wide$case_days_open_sum.1/365), osha_wide$union_not_present_sum.1))
+colnames(data2) = c("CaseDuration", "No-Union")
+head(data2, 6)
+
+count = cbind(osha_wide$case_days_open_sum.1, osha_wide$union_present_sum.1, osha_wide$union_not_present_sum.1)
+boxplot(count)
+```
+
+
+## Does the presence of union help the violation to get deleted?
+
+
+```{r, echo = FALSE}
+
+
+```
+
+
+---------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------
+
+
+## Part Five: Reflection
+
+In 100-300 words reflect on what I learned from the analysis. Based on my analysis could I tell what kind of issue is relevant and/ maynot be relevant or mightnot be unanalyzed? Can there be any societal consequences that can arise?
+
+* answer answer answer*
+
+
+---------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------
+
