@@ -1,16 +1,30 @@
 ## Research Internship - Summer 2021
 
-## Data analysis for OSHA "Occupational Safety and Health Administration"
+### Data analysis for OSHA "Occupational Safety and Health Administration"
 
-## Project One:
+*There are 13 variables that we believe can help predict the toxicity in facilities. From those variables, I would like to focus to predict violation seriousness based on the violation payment. There are THREE variables that I assume will help with the analysis. They are the "initial penalty fee", "current penalty paid" and "number of people exposed".*
 
-### Which of the predictors "initial penalty fee", "current penalty paid", and "people exposed" explain the seriousness of "violation" in facilities? 
-### Approach: Hypothesis test, multiple linear regression, data visualization
+*I will be approaching the data analysis using:
+(i) Hypothesis test, (ii) multiple linear regression and, (iii) data visualization*
+
+
+## Content of the Research Paper:
+
+#### Part 1: Load Packages and Datasets
+
+#### Part 2: About Variable
+
+#### Part 3: Data Analysis 
+
+#### Part 4: Extended Analysis
+
+#### Part 5: Data Visualization
+
+#### Part 6: Reflection
 
 
 ---------------------------------------------------------------------------------------------------
 ---------------------------------------------------------------------------------------------------
-
 
 ## Part One: Load packages and dataset
 
@@ -18,17 +32,21 @@
 rm(list=ls())
 library(tidyverse)
 library(ggplot2)
+library(dplyr)
+
 library(corrplot)
+library(olsrr)
+
 library(leaps)
 library(MASS)
 
-osha_wide <- read.csv("dataset_wide.csv", header = T)
+library(lubridate)
+theme_set(theme_bw(base_size = 16))
 ```
 
 
 ---------------------------------------------------------------------------------------------------
 ---------------------------------------------------------------------------------------------------
-
 
 ## Part Two: About Variable
 
@@ -40,16 +58,21 @@ VARIABLE NAME | DEFINTION | WHY IS THIS VARIABLE RELEVANT? WHAT DOES IT INDICATE
 *cptotal.1* | *Total penalty amount that a facility paid for the entire violation* | *Total amount of penalty paid in USD for entire violation per facility can be a better fit as it can indicate accountability of the facility*
 
 
+---------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------
+
 ## Part Three: Data analysis
 
 ### About Data
 
 ```{r, echo = FALSE}
+osha_wide <- read.csv("dataset_wide.csv", header = T)
 y1 <- osha_wide$nr_violations.1 
 x1 <- osha_wide$total_exposed.1
 x2 <- osha_wide$iptotal.1
 x3 <- osha_wide$cptotal.1
 
+#table(y1)
 df <- cbind(y1, x1, x2, x3)
 colnames(df) <- c("Violation", "Exposed", "InitialP", "CurrentP")
 
@@ -62,13 +85,13 @@ paste("Mathematically, the First-order regression equation is:")
 
 $Y = \beta_0 + \beta_1 X_i1 + \beta_2 X_i2 + \beta_3 X_i3 + \epsilon_i$
 
-$Y_i$ = is violations of facility $i$
+$Y_i$ = is number of violations per facility $i$ for i = 1 to 149
 
-$X_1$ = is number of people exposed at facility $i$
+$X_1$ = is number of people exposed at facility $i$ for i = 1 to 149
 
-$X_2$ = is amount in USD of initial penalty amount of facility $i$
+$X_2$ = is amount in USD of initial penalty amount of facility $i$ for i = 1 to 149
 
-$X_3$ = is amount in USD of current penalty payment of facility $i$
+$X_3$ = is amount in USD of current penalty payment of facility $i$ for i = 1 to 149
 
 
 ### Approach using Hypothesis Test
@@ -107,39 +130,14 @@ paste("Predictors 'X2=Initial amount' and 'X3=Current penalty paid' explain", (r
 
 ### a. Graphical representation and interpretation:
 
-
 ```{r, echo = FALSE}
-n = dim(df)[1]; p = dim(df)[2]
-X = cbind(rep(1,n), df[,2:4])
-Y = df[,1]
-par(mfrow = c(2,2))
+par(mfrow = c(1,3))
 
+plot(Violation ~ Exposed, pch = 19, col = "black", data = df) 
 
+plot(Violation ~ InitialP, pch = 19, col = "black", data = df) 
 
-# Correlation panel
-panel.cor <- function(x, y){
-    usr <- par("usr"); on.exit(par(usr))
-    par(usr = c(0, 1, 0, 1))
-    r <- round(cor(x, y), digits=2)
-    txt <- paste0("R = ", r)
-    cex.cor <- 0.8/strwidth(txt)
-    text(0.5, 0.5, txt, cex = cex.cor * r)
-}
-# Customize upper panel
-
-my_cols <- c("#00AFBB", "#E7B800", "#FC4E07")  
-
-upper.panel<-function(x, y){
-  points(x,y, pch = 19, col = my_cols[df[,1]])
-}
-# Create the plots
-pairs(df[,1:4], 
-      lower.panel = panel.cor,
-      upper.panel = upper.panel)
-
-
-#hist(Y, main = "Distribution of Violation")
-#**The histogram plot is skewed to the right illustrating the data is positive. This is because we are having a larger of our observation mostly in the lower values than the larger values.
+plot(Violation ~ CurrentP, pch = 19, col = "black", data = df) 
 ```
 
 
@@ -150,7 +148,6 @@ paste("People Exposed")
 summary(x1)
 ```
 
-
 Respondents' exposed to toxicity range from 0-13181 peoples with a mean of 360 people exposed per facility.
 We have data distributed or skewed to the right.
 
@@ -158,7 +155,6 @@ We have data distributed or skewed to the right.
 paste("Initial Amount")
 summary(x2)
 ```
-
 
 The penalty amount charged to facilities range from 0 - 141680 USD, with a mean of 8827 USD per facility.
 We have data distributed or skewed to the right.
@@ -168,7 +164,6 @@ paste("Current Pay")
 summary(x3)
 ```
 
-
 The penalty amount charged to facilities range from 0 - 63295 USD, with a mean of 4933 USD per facility.
 We have data distributed or skewed to the right.
 
@@ -176,7 +171,29 @@ We have data distributed or skewed to the right.
 ### c. Testing for multicollinearity diagnostic
 
 ```{r, echo = FALSE}
-library(olsrr)
+par(mfrow = c(2,2))
+
+# Correlation panel
+panel.cor <- function(x, y){
+    usr <- par("usr"); on.exit(par(usr))
+    par(usr = c(0, 1, 0, 1))
+    r <- round(cor(x, y), digits=2)
+    txt <- paste0("R = ", r)
+    cex.cor <- 0.8/strwidth(txt)
+    text(0.5, 0.5, txt, cex = cex.cor * r)
+}
+
+# Customize upper panel
+my_cols <- c("#00AFBB", "#E7B800", "#FC4E07")  
+
+upper.panel<-function(x, y){
+  points(x,y, pch = 19, col = my_cols[df[,1]])
+}
+
+# Create the plots
+pairs(df[,1:4], 
+      lower.panel = panel.cor,
+      upper.panel = upper.panel)
 ```
 
 
@@ -185,7 +202,6 @@ library(olsrr)
 sample <- as.data.frame(cbind(x1, x2, x3))
 round(cor(sample), digits = 2)
 ```
-
 
 There is a high correlation between the variable "CurrentPay" and "InitialAmount" where (r = 0.92)
 
@@ -196,7 +212,6 @@ summary(samplemodel)
 ols_coll_diag(samplemodel)
 ```
 
-
 Since both VIF values are below 10 and tolerance values are not below 0.1, we consider both variables are within tolerance level suggesting there id no collinearity. 
 However, when we check at the lowest eigenvalue (0.006), we can see that both InitialAmount and CurrentPay have high variance proportions (0.95 and 0.96) for Dimension 3, which means that 95% of the variance of the b-value for InitialAmount and 96% of the variance of the b-value for CurrentPay is associated with the Eigenvalue 3 (the smallest eigenvalue). This suggests that there might be some dependency between these two variables.
 
@@ -205,7 +220,6 @@ Therefore, we understand there is no multicollinearity in our data except the su
 
 
 ### d. Model building
-
 
 ```{r, echo = FALSE}
 # violation = [y.intercept] + [slope1*Exposed] + [slope2*InitialP] + [slope3*CurrentP]
@@ -216,7 +230,6 @@ summary(model)
 par(mfrow = c(2, 2))
 plot(model)
 ```
-
 
 Pvalue1 suggests that using all the predictors is significantly better than using InitialP & CurrentP alone. 
 Pvalue2 suggests same thing. 
@@ -235,12 +248,10 @@ par(mfrow = c(2, 2))
 plot(model_transformed)
 ```
 
-
 Transforming the dataset is not helping to normalize it, therefore I will continue the analysis without transforming it.
 
 
 ### 2. Data splitting 
-
 
 ```{r, echo = FALSE}
 set.seed(123)
@@ -256,7 +267,6 @@ paste("There are", n_train, "training and", n_test, "validating/testing observat
 
 
 ### 3. First-order model selection using best subsets criteria
-
 
 ```{r, echo = FALSE}
 Y = as.matrix(training_data[,1])
@@ -295,11 +305,11 @@ abline(0,1,col="turquoise")
 which.min(Cp-p) #2
 summary(models)$which[which.min(Cp-p),]
 ```
+
 ```{r, echo = FALSE}
 which.min(Cp) #1 
 summary(models)$which[which.min(Cp),]
 ```
-
 
 The model with the lowest Cp−p has index 2, this includes all the predictor variables except Current penalty. The model with the lowest Cp has index 1, this includes all the predictor variables except Exposed and Current penalty.
 
@@ -312,12 +322,10 @@ AIC = n*log(SSE)-n*log(n)+2*p
 plot(p,AIC)
 ```
 
-
 ```{r, echo = FALSE}
 which.min(AIC) #2
 summary(models)$which[which.min(AIC),]
 ```
-
 
 The model with the lowest AIC has index 91, this includes all the predictor variables except current penalty. 
 
@@ -327,7 +335,6 @@ The model with the lowest AIC has index 91, this includes all the predictor vari
 BIC = n*log(SSE)-n*log(n)+p*log(n)
 plot(p,BIC)
 ```
-
 
 ```{r, echo = FALSE}
 which.min(BIC) #1
@@ -354,18 +361,15 @@ for (i in 1:m){
 plot(p, PRESS)
 ```
 
-
 ```{r, echo = FALSE}
 which.min(PRESS) #1
 summary(models)$which[which.min(PRESS),]
 ```
 
-
 The model with the lowest PRESS has index 1, this includes all the predictor variables except exposed and current penalty.
 
 
-### b. 4. Model Diagnostic
-
+### 4. Model Diagnostic
 
 ```{r, echo = FALSE}
 par(mfrow=c(2,2))
@@ -378,7 +382,6 @@ plot(sel1)
 summary(sel1)
 ```
 
-
 ```{r, echo = FALSE}
 par(mfrow=c(2,2))
 i = 2
@@ -390,12 +393,10 @@ plot(sel2)
 summary(sel2)
 ```
 
-
 We compare both selected models and they both look fine, and that some assumptions hold. However, model 1 has smallest predictor variables, and with smallest MSE and MSPR.
 
 
-### b. 5. First-order with Two-way interaction model selection using stepwise algorithm
-
+### 5. First-order with Two-way interaction model selection using stepwise algorithm
 
 ```{r, echo = FALSE}
 model0 = lm(Y~1, data=data.frame(Xs))
@@ -411,74 +412,379 @@ Thus, we conclude that the optimal model to predict seriousness of violation is 
 ---------------------------------------------------------------------------------------------------
 ---------------------------------------------------------------------------------------------------
 
+## Part Four: Extended Analysis
 
-### Part Four: Data Visualization
+*Even though the previous model predicts that variable "Initial Payment" will be the optimal variable to help predict seriousness of violation. There are many missing violation penalty payment information for Federal owned facility. There is no clear indication from data dictionary why those information are missing. However, to prevent misleading conclusion, I will re-do the model selection approach without information for violation of Federal owned facilities.*
 
 ```{r, echo = FALSE}
-library(ggplot2)
+osha_wide <- read.csv("dataset_wide.csv", header = T) %>% filter(owner_typef.1 != "FEDERAL GOVERNMENT")
+
+#table(osha_wide$owner_typef.1) #check before n after
+
+y1 <- osha_wide$nr_violations.1 
+x1 <- osha_wide$total_exposed.1
+x2 <- osha_wide$iptotal.1
+x3 <- osha_wide$cptotal.1
+df <- cbind(y1, x1, x2, x3)
+colnames(df) <- c("Violation", "Exposed", "InitialP", "CurrentP")
+
+(n=dim(df))
+head(df, 20)
 ```
 
-### plot case duration and initial payment? what do we get?
-```{r, echo = FALSE}
+*We note the total observation has decreased from 149 to 140.*
 
+
+```{r, echo = FALSE}
+n = dim(df)[1]; p = dim(df)[2]
+X = as.matrix(cbind(rep(1,n), df[,2:4]))
+Y = as.matrix(df[,1])
+
+model = lm(Y ~ X)
+anova(model)
+
+# coefficient of partial determination: given x1 what additional % of variation can be explained by x2 and x3
+sm = summary(model)
+partialR = (sm$r.squared)
+
+paste("Predictors 'X2=Initial amount' and 'X3=Current penalty paid' explain", (round(partialR, digits=2))*100,"% of the variation in the response variable that cannot be explained by 'X1=People Exposed' variable. ")
+```
+
+### 1. d. Model building
+
+```{r, echo = FALSE}
+# violation = [y.intercept] + [slope1*Exposed] + [slope2*InitialP] + [slope3*CurrentP]
+model = lm(Y ~ X)
+
+summary(model)
+
+par(mfrow = c(2, 2))
+plot(model)
+```
+
+### 2. Data splitting 
+
+```{r, echo = FALSE}
+set.seed(123)
+
+index = sample(1:140, 70)
+training_data = df[index,]  #the first half
+validate_data = df[-index,] #the second half
+
+
+n_train = dim(training_data)[1]; n_test = dim(validate_data)[1]
+paste("There are", n_train, "training and", n_test, "validating/testing observations.")
+```
+
+### 3. First-order model selection using best subsets criteria
+
+```{r, echo = FALSE}
+Y = as.matrix(training_data[,1])
+XM = as.matrix(cbind(rep(1,70), training_data[,2:4]))
+
+Y_val = as.matrix(validate_data[,1])
+XM_val = as.matrix(cbind(rep(1,70), validate_data[,2:4]))
+
+models = regsubsets(training_data[,2:4], Y, nbest=1, nvmax=3) ###
+potential = summary(models)$which
+#dim(potential)
+```
+
+### a. adjusted r squared
+
+```{r, echo = FALSE}
+Rap = summary(models)$adjr2
+p = rowSums(summary(models)$which)
+# plot(p,Rap)
+which.max(Rap) #3
+```
+
+```{r, echo = FALSE}
+summary(models)$which[which.max(Rap),]
+```
+
+### b. Cp
+
+```{r, echo = FALSE}
+Cp = summary(models)$cp
+p = rowSums(summary(models)$which)
+# plot(p,Cp)
+# abline(0,1,col="turquoise")
+
+which.min(Cp-p) #3
+summary(models)$which[which.min(Cp-p),]
+```
+
+```{r, echo = FALSE}
+which.min(Cp) #3
+summary(models)$which[which.min(Cp),]
+```
+
+The model with the lowest Cp−p has index 3, this includes all the predictor variables. The model with the lowest Cp has index 3 as well indicating all the predictor variables.
+
+### c. AIC
+
+```{r, echo = FALSE}
+SSE = summary(models)$rss
+n = dim(df)[1]
+AIC = n*log(SSE)-n*log(n)+2*p
+# plot(p,AIC)
+```
+
+```{r, echo = FALSE}
+which.min(AIC) #3
+summary(models)$which[which.min(AIC),]
+```
+
+The model with the lowest AIC has index 3, this includes all the predictor variables. 
+
+### d. BIC
+
+```{r, echo = FALSE}
+BIC = n*log(SSE)-n*log(n)+p*log(n)
+# plot(p,BIC)
+```
+
+```{r, echo = FALSE}
+which.min(BIC) #3
+summary(models)$which[which.min(BIC),]
+```
+
+The model with the lowest BIC has index 3, this includes all the predictor variables. 
+
+### e. PRESS
+
+```{r, echo = FALSE}
+include = summary(models)$which[,-1]
+
+m = dim(include)[1]
+PRESS = rep(0,m)
+for (i in 1:m){
+    temp = which(include[i,])
+    Xs = XM[,-1]
+    #reg = lm(Y~., data=data.frame(cbind(Y,Xs[,temp])))
+    reg = lm(Y~., data=data.frame(Xs[,temp]))
+    PRESS[i] = sum((reg$residuals/(1 - lm.influence(reg)$hat))^2)
+}
+
+# plot(p, PRESS)
+```
+
+```{r, echo = FALSE}
+which.min(PRESS) #2
+summary(models)$which[which.min(PRESS),]
 ```
 
 
-### plot number exposed and initial payment? what do we get?
-```{r, echo = FALSE}
+*Removing observations of Federal owned variable gives us the optimal model will have all the three predictor variables "initial payment", "current payment" and "people exposed" to predict the seriousness of the variable "violation".*
 
+
+---------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------
+
+
+## Part Five: Data Visualization
+
+---------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------
+
+About Variable
+
+VARIABLE NAME | DEFINTION | WHY IS THIS VARIABLE RELEVANT? WHAT DOES IT INDICATE?
+---|---|---
+*case_days_open_mean.1* | *A* | *B*
+*avg_ipcpdif.1* | *A* | *B*
+*total_exposed.1* | *A* | *B*
+*union_present_sum.1* | *A* | *B*
+*union_not_present_sum.1* | *A* | *B*
+*owner_typef.1* | *A* | *B*
+*contest_date_sum.1* | *A* | *B*
+
+
+```{r, echo = FALSE}
+osha_wide <- read.csv("dataset_wide.csv", header = T)
+y = osha_wide$case_days_open_mean.1
+x1 = osha_wide$avg_ipcpdif.1  #Average difference
+x2 = osha_wide$total_exposed.1
+x3 = osha_wide$union_present_sum.1
+x4 = osha_wide$union_not_present_sum.1
+x5 = osha_wide$owner_typef.1
+x6 = osha_wide$contest_date_sum.1
+df = data.frame(y, x1, x2, x3, x4, x5, x6)
+colnames(df) = c("Avg_Case_Days", "Difference_Penalty_Pay", "Avg_People_Exposed", "Union_Present", "Union_Not_Present", "Owner_Type", "Contest_Date")
+# 
+df$Owner_Type = factor(df$Owner_Type, labels = c("Federal", "Local", "Private", "State"))
 ```
 
 
-### plot contest date and penalty payment? what do we get?
 ```{r, echo = FALSE}
-library(tidyverse)
-
-osha_lo <- read.csv("dataset_long.csv", header = T)
-
-ContestDate <- as.vector(osha_lo$contest_date)
-ContestDate[ContestDate == ""] = 0; ContestDate[is.na(ContestDate)] = 0; ContestDate[ContestDate != 0] = 1
-table(ContestDate)
-
-InitialAmount <- as.vector(osha_lo$initial_penalty)
-InitialAmount[is.na(InitialAmount)] = 0
-#table(InitialAmount)
+osha_lo <- read.csv("dataset_long.csv", header = T) %>%
+  filter(!is.na(reporting_id) & !is.na(owner_type) & !is.na(viol_type))
+```
 
 
-CurrentPay <- as.vector(osha_lo$current_penalty)
-CurrentPay[is.na(CurrentPay)] = 0
-#table(CurrentPay)
+*There are THREE types of Violation*
 
-mydata2 <- as.data.frame(cbind(ContestDate, InitialAmount, CurrentPay))
-n <- length(mydata2[,1])
-paste("There are total", n, "observations and below is table of 20 sample observations from the dataset:")
-head(mydata2, 20)
+```{r, echo = FALSE}
+paste("Variable: Violation Type")
+table(osha_lo$viol_type)
+```
 
-library(tidyverse)
+VIOLATION NAME | DEFINTION | WHY IS THIS VARIABLE RELEVANT? WHAT DOES IT INDICATE?
+---|---|---
+*O* | *Other than serious violation* | *A violation that has a direct relationship to job safety and health, but is not serious in nature, is classified as "other-than-serious."*
+*R* | *Repeated Violation* | *A Federal agency may be cited for a repeated violation if the agency has been cited previously for the same or a substantially similar condition and, for a serious violation, OSHA's regionwide (see last page) inspection history for the agency lists a previous OSHA Notice issued within the past five years; or, for an other-than-serious violation, the establishment being inspected received a previous OSHA Notice issued within the past five years.*
+*S* | *Serious Violation* | *A serious violation exists when the workplace hazard could cause an accident or illness that would most likely result in death or serious physical harm, unless the employer did not know or could not have known of the violation.*
+
+
+```{r, echo = FALSE}
+tablef = data.frame(cbind(table(osha_lo$reporting_id, osha_lo$owner_type)))
+colnames(tablef) = c("A = Private", "B = Local Govt", "C = State Govt", "D = Federal")
+boxplot(tablef, main = "Analysis of Owner Type by Reported Violation", ylim = c(0, 100), col = c("darkgreen"))
+```
+
+*We understand from the plot that state government have the highest reported violation whereas private facilities have the lowest reported violation compared to the other owners. We do not know if private facilities were very cautious from violation to prevent higher violation fees or to protect their license from cancellation. They have the lowest violation from the other type of facilities.*
+
+```{r echo=FALSE, fig.height=12, fig.width=12}
+OwnerType <- ifelse(osha_lo$owner_type == "A", "A=Private",
+             ifelse(osha_lo$owner_type == "B", "B=Local Govt",
+             ifelse(osha_lo$owner_type == "C", "C=State Govt", "D=Federal")))
+#sort(unique(OwnerType))
+#table(OwnerType, osha_lo$owner_type)
+
+CurrentPenalty <- as.factor(osha_lo$current_penalty)
+InitialPenalty <- as.factor(osha_lo$initial_penalty)
+
 par(mfrow=c(2,2))
-qplot(x = mydata2$ContestDate, geom = "bar")
+boxplot(as.numeric(CurrentPenalty) ~ OwnerType, main = "Paid Penalty scale by Owner type", ylab = "Paid Penalty Scale", ylim = c(0, 80), col = c("cyan"))
 
-library(ggplot2)
-my_table <- table(ContestDate)
-count = table(mydata2$InitialAmount)
-ggplot(mydata2, aes(x = ContestDate, y = InitialAmount)) +
-  geom_col(position = "dodge")
+boxplot(as.numeric(InitialPenalty) ~ OwnerType, main = "Initial Penalty scale by Owner type", ylab = "Initial Penalty Scale", ylim = c(0, 80), col = c("gold"))
+# summary(CurrentPenalty)
+```
+
+*We observe some differences between "Initial penalty" and "Paid penalty" on the whiskers for Private, Local and State government facility. This indicates some facilities were either paying more than charged or maybe paying less than the amount penalized.*
+
+#### Plot (1): which owner type has the highest difference from penalty payment?
+
+```{r, echo = FALSE}
+test = do.call(rbind, by(df, df$Owner_Type, FUN = function(sumcp){sumcp$total_pay = sum(sumcp$Difference_Penalty_Pay, na.rm = TRUE)
+  return(sumcp)
+}))
+
+
+fr = addmargins(table(test$total_pay, test$Owner_Type), 1)
+tail(fr)
+```
+
+```{r, echo = FALSE}
+df %>%
+  ggplot(aes(Difference_Penalty_Pay, Avg_Case_Days, color = factor(Owner_Type))) +
+  geom_point(alpha = 0.5, size = 2)+
+  labs(y = "Penalty payment in USD",
+       x = "Violation case days",
+       subtitle = "Facility Owner with Highest Difference from Violation Penalty") +
+  scale_fill_discrete(name = "Facility Owner", labels = c("Federal", "Local", "Private", "State")) 
+```
+
+*We observe State owned facility have the highest number of violation penalty, whereas Private owned facility being the least. However, facilities owned by State have the longer the case stayed the lower they paid. According to the table and plot, we note that State owned facility have a higher summed amount of difference from their total violation penalty compared to others.*
+
+
+#### Plot(2): does penalty payment increases on violation case days?
+
+```{r, echo = FALSE}
+df %>%
+  ggplot(aes(Difference_Penalty_Pay, Avg_Case_Days, color = Avg_People_Exposed)) +
+  geom_point(alpha = 0.5, size = 2, shape = 19)+
+  labs(y = "Penalty payment in USD",
+       x = "Violation case days",
+       title = "Comparison of Violation Case Days and Penalty Pay",
+       subtitle = "by Average People Exposed")
+```
+
+*According to the trend in the given plot, there seems to be no change on the penalty payment for the increased violation case days.*
+
+*The more the violation case days, the price varies.*
+
+
+#### Plot(3): does contesting a violation decreases difference from penalty payment? 
+
+```{r, echo = FALSE}
+# df$Contest_Date = ifelse(df$Contest_Date > "0", "Y", "N")
+# # table(df$Contest_Date)
+# freq = table(df$Contest_Date, df$Difference_Penalty_Pay)
+# FREQ1 = addmargins(table(df$Owner_Type, df$Contest_Date), 1)
+# print(FREQ1)
 ```
 
 
+```{r, echo = FALSE}
+test2 = do.call(rbind, by(df, df$Contest_Date, FUN = function(sumcp){sumcp$contest_pay = sum(sumcp$Difference_Penalty_Pay, na.rm = TRUE)
+  return(sumcp)
+}))
+
+
+fr = addmargins(table(test2$contest_pay, df$Contest_Date), 1)
+print(fr)
+```
+
+
+```{r, echo = FALSE}
+df %>%
+  ggplot(aes(Contest_Date, Difference_Penalty_Pay, color = as.factor(Owner_Type))) +
+  geom_point(alpha = 0.5, size = 2)+
+  labs(y = "Penalty payment in USD",
+       x = "Violation Contest Dates",
+       title = "Comparison of Contested Violation Case by Penalty Payment",
+       subtitle = "by Owner type") +
+  scale_fill_discrete(name = "Facility Owner", labels = c("Federal", "Local", "Private", "State"))
+```
+
+*State owned facility have the most highest contested violation cases, whereas Private owned facility have less number of contesting the violation.*
+
+*Although there are many of violation cases been contested, it does not necessarily affect the penalty payment.*
+
+
+#### Plot(4): does the presence of Union helps to decrease the penalty payment?
+
+```{r, echo = FALSE}
+df$Union_Present = ifelse(df$Union_Present > "0", "Y", "N")
+# table(df$Union_Present)
+
+FREQ3 = addmargins(table(df$Owner_Type, df$Union_Present), 1)
+print(FREQ3)
+```
+
+```{r, echo = FALSE}
+df %>% ggplot(aes(x = Union_Present, y = Difference_Penalty_Pay, fill= factor(Owner_Type))) +
+  geom_boxplot() +
+  facet_grid(rows = vars(Owner_Type)) + 
+  ylim(0,7500) +
+  scale_fill_discrete(name = "Facility Owner", labels = c("Federal", "Local", "Private", "State"))
+```
+
+*According to the table, Union was present more in State owned facility and least present in Private owned facility.*
+
+
+#### Plot: does presence of union elongates the violation case duration?
+
+```{r, echo = FALSE}
+df %>% ggplot(aes(x = Union_Present, y = Avg_Case_Days, fill= factor(Owner_Type))) +
+  geom_bar(stat = "identity") +
+  facet_grid(rows = vars(Owner_Type)) + 
+  ylim(0,7500) +
+  scale_fill_discrete(name = "Facility Owner", labels = c("Federal", "Local", "Private", "State"))+
+  scale_color_manual(values=c('#999999','#d8b365','#56B4E9', '#5ab4ac'))
+```
+
+In most cases, I believe YES the presence of Union elongates the case duration.
+
 
 ---------------------------------------------------------------------------------------------------
 ---------------------------------------------------------------------------------------------------
 
-
-## Part Five: Reflection
-
+#### Part Six: Reflection
 
 *In this exploratory data analysis, I learned that the seriousness of violation can be predicted by the variable initial payment. I was able to come to this conclusion after performing a hypothesis test which favored the reduced model. A reduced model is the model with less predictor variables and it suggest that at least one predictor variable is only useful to the model. In addition, I continued my analysis by performing a multiple regression to select an optimal model that consist of statistically significant predictors with lowest error term. Using the best subset criteria method and model validation, I ended up with the model having the lowest predictor and lowest BIC that consist of the variable initial payment only. However, I might not state that initial payment should be the only predictor since there are variables from the dataset that were left unanalyzed. Also, there might be other variables that could help to determine the seriousness, but the variable is not included in the dataset. For instance, I think having a variable that indicates training per facility might be interesting to analyze. Since, if there are safety training occurring in facilities, they might help to lessen serious violation.*
-
-
-*Plot interpretation and findings missing??*
-
 
 ---------------------------------------------------------------------------------------------------
 ---------------------------------------------------------------------------------------------------
