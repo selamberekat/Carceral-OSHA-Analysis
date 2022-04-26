@@ -1,0 +1,74 @@
+
+
+```{r, echo = FALSE}
+rm(list=ls())
+library(tidyverse)
+library(ggplot2)
+```
+
+
+# Long Dataset
+```{r}
+# Read data
+osha_lo <- read.csv("dataset_long.csv", header = T)
+dim(osha_lo)
+
+# Store selected variables in data frame
+df <- data.frame(osha_lo$owner_type, osha_lo$viol_type, osha_lo$nr_instances, osha_lo$nr_exposed, osha_lo$initial_penalty, osha_lo$current_penalty)
+
+# Rename columns in dataframe
+colnames(df) <- c("OwnerType", "ViolationType", "NumberInstances", "PeopleExposed", "InitialPayment", "ActualPayment")
+
+# Replace NA's with 0
+df$NumberInstances[is.na(df$NumberInstances)] <- 0
+df$PeopleExposed[is.na(df$PeopleExposed)] <- 0
+df$InitialPayment[is.na(df$InitialPayment)] <- 0
+df$ActualPayment[is.na(df$ActualPayment)] <- 0
+
+# Remove NA's
+df <- na.omit(df) 
+dim(df)
+
+# Rename factor levels of 2 columns
+df$OwnerType <- recode_factor(df$OwnerType, A = "A: PrivateSector", B = "B: LocalGovt", C = "C: StateGovt", D = "D: FederalGovt")
+df$ViolationType <- recode_factor(df$ViolationType, S = "S: Serious", R = "R: Repeated Serious", O = "O: Other/NonSerious")
+
+# Groupby the 2 categorical variables and get the total sum for each numeric variables
+df%>% group_by(OwnerType, ViolationType) %>% summarise(PeopleExposed = sum(PeopleExposed), InitialPayment = sum(InitialPayment), ActualPayment = sum(ActualPayment))
+```
+
+
+# Wide Dataset
+```{r}
+# Read data
+osha_wide <- read.csv("dataset_wide.csv", header = T)
+dim(osha_wide)
+# colnames(osha_wide)
+
+# Store selected variables in data frame
+df2 <- data.frame(osha_wide$owner_typef.1, osha_wide$nr_violations.1, osha_wide$serious_violations_sum.1, osha_wide$repeat_violations_sum.1, osha_wide$avg_ppl_in_facility.1, osha_wide$total_exposed.1, osha_wide$iptotal.1, osha_wide$cptotal.1)
+
+# Rename columns in dataframe
+colnames(df2) <- c("OwnerType", "NumberViolation", "SeriousViolation", "RepeatedViolation", "AveragePeopleInFacility", "PeopleExposed", "InitialPayment", "ActualPayment")
+
+# Replace NA's with 0
+df2$NumberViolation[is.na(df2$NumberViolation)] <- 0
+df2$SeriousViolation[is.na(df2$SeriousViolation)] <- 0
+df2$RepeatedViolation[is.na(df2$RepeatedViolation)] <- 0
+df2$AveragePeopleInFacility[is.na(df2$AveragePeopleInFacility)] <- 0
+df2$PeopleExposed[is.na(df2$PeopleExposed)] <- 0
+df2$InitialPayment[is.na(df2$InitialPayment)] <- 0
+df2$ActualPayment[is.na(df2$ActualPayment)] <- 0
+
+# Remove NA's
+df2 <- na.omit(df2) 
+dim(df2)
+
+# Rename factor levels of 2 columns
+df2$OwnerType <- recode_factor(df2$OwnerType, "PRIVATE" = "A: PrivateSector", "LOCAL GOVERNMENT" = "B: LocalGovt", "STATE GOVERNMENT" = "C: StateGovt", "FEDERAL GOVERNMENT" = "D: FederalGovt")
+
+# Groupby the 2 categorical variables and get the total sum for each numeric variables
+df2%>% group_by(OwnerType) %>% summarise(NumberViolation = sum(NumberViolation), SeriousViolation = sum(SeriousViolation), RepeatedViolation = sum(RepeatedViolation), AveragePeopleInFacility = sum(AveragePeopleInFacility), PeopleExposed = sum(PeopleExposed), InitialPayment = sum(InitialPayment), ActualPayment = sum(ActualPayment))
+
+```
+
